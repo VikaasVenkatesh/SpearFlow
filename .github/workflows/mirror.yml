@@ -1,0 +1,40 @@
+# Mirrors every push on VikaasVenkatesh/SpearFlow back to ahdithanu/SpearFlow.
+#
+# Needs a repo secret MIRROR_TOKEN: a classic GitHub token from an account
+# with write access to ahdithanu/SpearFlow, with the `repo` and `workflow`
+# scopes (`workflow` is required to push changes under .github/workflows).
+#
+# Never force-pushes. If someone commits straight to the original, this job
+# fails instead of overwriting their work — fix by merging their commit here.
+name: Mirror to ahdithanu/SpearFlow
+
+on:
+  push:
+    branches: ["**"]
+
+concurrency:
+  group: mirror-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    # the mirrored copy of this file must not try to push the original to itself
+    if: github.repository == 'VikaasVenkatesh/SpearFlow'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false   # otherwise the default token overrides MIRROR_TOKEN for github.com
+
+      - name: Push to the original repo
+        env:
+          MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          if [ -z "$MIRROR_TOKEN" ]; then
+            echo "::warning::MIRROR_TOKEN secret is not set, so nothing was mirrored."
+            exit 0
+          fi
+          git push "https://${{ github.repository_owner }}:${MIRROR_TOKEN}@github.com/ahdithanu/SpearFlow.git" \
+            "HEAD:refs/heads/${BRANCH}"
